@@ -39,7 +39,7 @@ def main():
     end_ms = int(end_dt.timestamp() * 1000)
 
     session = create_session()
-    db_path = f".data/crypto/binance-{interval}.db"
+    db_path = f".data/crypto/binance-{symbol}-{interval}.db"
     store = KlineStore(db_path)
 
     if symbol.upper() == "ALL":
