@@ -48,7 +48,7 @@ def main():
     start_ms = int(start_dt.timestamp() * 1000)
     end_ms = int(end_dt.timestamp() * 1000)
 
-    store = KlineStore(exchange="binance", interval="1d")
+    store = KlineStore(".data/crypto/binance-1d.db")
     candles = store.query("BTCUSDT", start_ms, end_ms)
     store.close()
 

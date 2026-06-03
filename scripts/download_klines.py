@@ -39,7 +39,8 @@ def main():
     end_ms = int(end_dt.timestamp() * 1000)
 
     session = create_session()
-    store = KlineStore(exchange="binance", interval=interval)
+    db_path = f".data/crypto/binance-{interval}.db"
+    store = KlineStore(db_path)
 
     if symbol.upper() == "ALL":
         symbols = fetch_symbols(session)

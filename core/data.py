@@ -1,23 +1,18 @@
 """DuckDB K-line storage layer.
 
-DB files: .data/crypto/{exchange}-{interval}.db
+Usage:
+    store = KlineStore("path/to/foo.db")
+    store.insert([...])
+    candles = store.query("BTCUSDT", start_ms, end_ms)
+    store.close()
 """
 
-from pathlib import Path
 import duckdb
-
-DATA_ROOT = Path(".data") / "crypto"
-
-
-def _db_path(exchange: str, interval: str) -> Path:
-    return DATA_ROOT / f"{exchange}-{interval}.db"
 
 
 class KlineStore:
-    def __init__(self, exchange: str, interval: str):
-        self.path = _db_path(exchange, interval)
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        self.conn = duckdb.connect(str(self.path))
+    def __init__(self, path: str):
+        self.conn = duckdb.connect(path)
         self._init_table()
 
     def _init_table(self):
@@ -71,6 +66,13 @@ class KlineStore:
             "SELECT DISTINCT symbol FROM kline ORDER BY symbol"
         ).fetchall()
         return [r[0] for r in rows]
+
+    def symbol_info(self) -> list[tuple]:
+        """Return [(symbol, count, first_ts, last_ts), ...] for every symbol."""
+        return self.conn.execute("""
+            SELECT symbol, COUNT(*), MIN(open_time), MAX(open_time)
+            FROM kline GROUP BY symbol ORDER BY symbol
+        """).fetchall()
 
     def count(self, symbol: str | None = None) -> int:
         if symbol:
