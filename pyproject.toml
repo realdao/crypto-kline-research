@@ -1,9 +1,13 @@
 [project]
-name = "btc-bottom-detect"
-version = "0.1.0"
-description = "Add your description here"
+name = "crypto-research"
+version = "0.2.0"
+description = "Crypto/A-stock quantitative strategy research framework"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "duckdb>=1.5.3",
+    "pyyaml>=6.0.3",
     "requests>=2.34.2",
 ]
+
+[tool.uv.sources]
