@@ -4,7 +4,7 @@ import sys
 from datetime import datetime, timezone
 
 from core.data import KlineStore
-from data.crypto.binance.client import create_session, fetch_klines, fetch_symbols
+from core.binance_client import create_session, fetch_klines, fetch_symbols
 
 
 def parse_date(s: str) -> datetime:
@@ -18,7 +18,7 @@ def parse_date(s: str) -> datetime:
 
 def main():
     if len(sys.argv) < 4:
-        print("Usage: python scripts/download_klines.py <symbol> <interval> <start_date> [end_date]")
+        print("Usage: python -m scripts.download_klines <symbol> <interval> <start_date> [end_date]")
         print("  symbol:  BTCUSDT, ETHUSDT, or 'ALL' for all USDT pairs")
         print("  interval: 1d, 4h, 1h")
         print("  dates:    2023-06-01")
@@ -39,7 +39,7 @@ def main():
     end_ms = int(end_dt.timestamp() * 1000)
 
     session = create_session()
-    store = KlineStore()
+    store = KlineStore(exchange="binance", interval=interval)
 
     if symbol.upper() == "ALL":
         symbols = fetch_symbols(session)
@@ -48,7 +48,7 @@ def main():
         symbols = [symbol]
 
     for i, sym in enumerate(symbols):
-        existing = store.count(exchange="binance", symbol=sym)
+        existing = store.count(symbol=sym)
         print(f"[{i+1}/{len(symbols)}] {sym} (stored: {existing})")
 
         try:

@@ -1,15 +1,21 @@
-"""DuckDB K-line storage layer."""
+"""DuckDB K-line storage layer.
+
+DB files: .data/crypto/{exchange}-{interval}.db
+"""
 
 from pathlib import Path
 import duckdb
 
+DATA_ROOT = Path(".data") / "crypto"
 
-DB_PATH = Path("data") / "crypto" / "kline.db"
+
+def _db_path(exchange: str, interval: str) -> Path:
+    return DATA_ROOT / f"{exchange}-{interval}.db"
 
 
 class KlineStore:
-    def __init__(self, path: Path | str = DB_PATH):
-        self.path = Path(path)
+    def __init__(self, exchange: str, interval: str):
+        self.path = _db_path(exchange, interval)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.conn = duckdb.connect(str(self.path))
         self._init_table()
@@ -18,39 +24,33 @@ class KlineStore:
         self.conn.execute("""
             CREATE TABLE IF NOT EXISTS kline (
                 symbol      VARCHAR NOT NULL,
-                exchange    VARCHAR NOT NULL,
-                interval    VARCHAR NOT NULL,
                 open_time   BIGINT NOT NULL,
                 open        DOUBLE NOT NULL,
                 high        DOUBLE NOT NULL,
                 low         DOUBLE NOT NULL,
                 close       DOUBLE NOT NULL,
                 volume      DOUBLE NOT NULL,
-                PRIMARY KEY (exchange, symbol, interval, open_time)
+                PRIMARY KEY (symbol, open_time)
             )
         """)
 
     def insert(self, rows: list[dict]) -> int:
-        """Insert klines, skip duplicates. Returns number of rows inserted."""
         existing = self.conn.execute("SELECT COUNT(*) FROM kline").fetchone()[0]
         self.conn.executemany(
             """INSERT OR IGNORE INTO kline
-               (exchange, symbol, interval, open_time, open, high, low, close, volume)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            [(r["exchange"], r["symbol"], r["interval"], r["open_time"],
-              r["open"], r["high"], r["low"], r["close"], r["volume"])
-             for r in rows]
+               (symbol, open_time, open, high, low, close, volume)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            [(r["symbol"], r["open_time"], r["open"], r["high"],
+              r["low"], r["close"], r["volume"]) for r in rows]
         )
         new_count = self.conn.execute("SELECT COUNT(*) FROM kline").fetchone()[0]
         return new_count - existing
 
-    def query(self, exchange: str, symbol: str, interval: str,
+    def query(self, symbol: str,
               start_ms: int | None = None, end_ms: int | None = None) -> list[dict]:
-        """Query klines, ordered by open_time ascending."""
-        sql = """SELECT symbol, exchange, interval, open_time, open, high, low, close, volume
-                 FROM kline
-                 WHERE exchange = ? AND symbol = ? AND interval = ?"""
-        params: list = [exchange, symbol, interval]
+        sql = """SELECT symbol, open_time, open, high, low, close, volume
+                 FROM kline WHERE symbol = ?"""
+        params: list = [symbol]
         if start_ms is not None:
             sql += " AND open_time >= ?"
             params.append(start_ms)
@@ -61,35 +61,23 @@ class KlineStore:
 
         rows = self.conn.execute(sql, params).fetchall()
         return [
-            {"symbol": r[0], "exchange": r[1], "interval": r[2],
-             "open_time": r[3], "open": r[4], "high": r[5],
-             "low": r[6], "close": r[7], "volume": r[8]}
+            {"symbol": r[0], "open_time": r[1], "open": r[2],
+             "high": r[3], "low": r[4], "close": r[5], "volume": r[6]}
             for r in rows
         ]
 
-    def get_symbols(self, exchange: str | None = None) -> list[str]:
-        """List all symbols in store."""
-        if exchange:
-            rows = self.conn.execute(
-                "SELECT DISTINCT symbol FROM kline WHERE exchange = ? ORDER BY symbol",
-                [exchange]
-            ).fetchall()
-        else:
-            rows = self.conn.execute(
-                "SELECT DISTINCT symbol FROM kline ORDER BY symbol"
-            ).fetchall()
+    def get_symbols(self) -> list[str]:
+        rows = self.conn.execute(
+            "SELECT DISTINCT symbol FROM kline ORDER BY symbol"
+        ).fetchall()
         return [r[0] for r in rows]
 
-    def count(self, exchange: str | None = None, symbol: str | None = None) -> int:
-        sql = "SELECT COUNT(*) FROM kline WHERE 1=1"
-        params: list = []
-        if exchange:
-            sql += " AND exchange = ?"
-            params.append(exchange)
+    def count(self, symbol: str | None = None) -> int:
         if symbol:
-            sql += " AND symbol = ?"
-            params.append(symbol)
-        return self.conn.execute(sql, params).fetchone()[0]
+            return self.conn.execute(
+                "SELECT COUNT(*) FROM kline WHERE symbol = ?", [symbol]
+            ).fetchone()[0]
+        return self.conn.execute("SELECT COUNT(*) FROM kline").fetchone()[0]
 
     def close(self):
         self.conn.close()

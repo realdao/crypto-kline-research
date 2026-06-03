@@ -48,8 +48,8 @@ def main():
     start_ms = int(start_dt.timestamp() * 1000)
     end_ms = int(end_dt.timestamp() * 1000)
 
-    store = KlineStore()
-    candles = store.query("binance", "BTCUSDT", "1d", start_ms, end_ms)
+    store = KlineStore(exchange="binance", interval="1d")
+    candles = store.query("BTCUSDT", start_ms, end_ms)
     store.close()
 
     print(f"BTCUSDT daily klines: {len(candles)} ({start_dt.date()} ~ {end_dt.date()})")
