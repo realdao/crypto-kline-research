@@ -30,16 +30,25 @@ class KlineStore:
         """)
 
     def insert(self, rows: list[dict]) -> int:
-        existing = self.conn.execute("SELECT COUNT(*) FROM kline").fetchone()[0]
-        self.conn.executemany(
-            """INSERT OR IGNORE INTO kline
-               (symbol, open_time, open, high, low, close, volume)
-               VALUES (?, ?, ?, ?, ?, ?, ?)""",
-            [(r["symbol"], r["open_time"], r["open"], r["high"],
-              r["low"], r["close"], r["volume"]) for r in rows]
+        if not rows:
+            return 0
+
+        # Use a single SQL VALUES clause — much faster than executemany on Windows.
+        placeholders = ", ".join(["(?, ?, ?, ?, ?, ?, ?)"] * len(rows))
+        flat_values = []
+        for r in rows:
+            flat_values.extend([r["symbol"], r["open_time"], r["open"],
+                                r["high"], r["low"], r["close"], r["volume"]])
+
+        before = self.count()
+        self.conn.execute("BEGIN")
+        self.conn.execute(
+            f"INSERT OR IGNORE INTO kline VALUES {placeholders}",
+            flat_values,
         )
-        new_count = self.conn.execute("SELECT COUNT(*) FROM kline").fetchone()[0]
-        return new_count - existing
+        self.conn.execute("COMMIT")
+        after = self.count()
+        return after - before
 
     def query(self, symbol: str,
               start_ms: int | None = None, end_ms: int | None = None) -> list[dict]:
