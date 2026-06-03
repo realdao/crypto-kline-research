@@ -18,7 +18,7 @@ def parse_date(s: str) -> datetime:
 
 def main():
     if len(sys.argv) < 4:
-        print("Usage: python -m scripts.download_klines <symbol> <interval> <start_date> [end_date]")
+        print("Usage: uv run -m scripts.download_klines <symbol> <interval> <start_date> [end_date]")
         print("  symbol:  BTCUSDT, ETHUSDT, or 'ALL' for all USDT pairs")
         print("  interval: 1d, 4h, 1h")
         print("  dates:    2023-06-01")

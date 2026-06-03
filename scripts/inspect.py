@@ -16,7 +16,7 @@ def _ts_to_str(ts: int) -> str:
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: python -m scripts.inspect <db_path>")
+        print("Usage: uv run -m scripts.inspect <db_path>")
         return
 
     db_path = sys.argv[1]

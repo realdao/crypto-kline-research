@@ -91,14 +91,14 @@ RSI(SMA, 14) < 30，即 14 日 SMA 相对强弱指标进入超卖区。
 ## 运行方式
 
 ```bash
-# 默认参数（2023-06-01 ~ now，参数扫描模式）
-uv run python main.py
+# 下载数据
+uv run -m scripts.download_klines BTCUSDT 1d 2023-06-01
 
-# 自定义时间范围 + 成交量倍数
-uv run python main.py 2023-06-01 2025-12-31 sweep
+# 查看 DB 状态
+uv run -m scripts.inspect .data/crypto/binance-1d.db
 
-# 简单模式（使用默认参数，不扫描）
-uv run python main.py 2023-06-01 now
+# 跑 BTC 底部策略研究
+uv run -m research.btc_bottom
 ```
 
 ## 参数说明
