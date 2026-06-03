@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+.python-version
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# CommandCode
+.commandcode/
