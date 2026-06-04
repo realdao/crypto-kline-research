@@ -2,6 +2,10 @@
 
 Usage:
     uv run python research/btc_bottom.py [start_date] [end_date]
+
+Features:
+    - Daily bottom detection via RSI + volume + divergence signals
+    - Top-5 4h volume analysis around each signal (3-day window)
 """
 
 import sys
@@ -11,6 +15,8 @@ from statistics import median, mean
 
 from core.data import KlineStore
 from core.scanner import sweep_params
+
+ONE_DAY_MS = 24 * 60 * 60 * 1000
 
 
 def parse_date(s: str) -> datetime:
@@ -129,6 +135,42 @@ def main():
         print(f"{d['date']:<12} {d['volume']:>16,.2f} {vp_s:>7} {d['low']:>12,.2f} "
               f"{d['close']:>12,.2f} {rsi_s:>8} {wf_s:>8} {mf_s:>8} {qb_s:>8} "
               f"{qw_s:>9} {dp_s:>12} {cond_s}")
+
+    # --- 4h top-5 volume bars around each signal ---
+    store_4h = KlineStore(".data/crypto/binance-BTCUSDT-4h.db")
+    print(f"\n\n{'='*120}")
+    print("TOP-5 4H VOLUME BARS (±1 day around each signal)")
+    print(f"{'='*120}")
+    print(f"{'Date':<12} {'#':>3} {'4h_Time':<20} {'Volume':>16} {'Open':>12} {'High':>12} "
+          f"{'Low':>12} {'Close':>12} {'1D_V%':>8}")
+    print("-" * 120)
+
+    for d in sorted_details:
+        top5 = top_n_volumes_4h(store_4h, d["open_time"], top_n=5)
+        for rank, bar in enumerate(top5, 1):
+            bar_dt = datetime.fromtimestamp(bar["open_time"] / 1000, tz=timezone.utc)
+            time_str = bar_dt.strftime("%Y-%m-%d %H:%M")
+            vol_ratio = f"{bar['volume'] / d['volume'] * 100:.1f}%" if d["volume"] else "N/A"
+            if rank == 1:
+                print(f"{d['date']:<12} {rank:>3} {time_str:<20} {bar['volume']:>16,.2f} "
+                      f"{bar['open']:>12,.2f} {bar['high']:>12,.2f} "
+                      f"{bar['low']:>12,.2f} {bar['close']:>12,.2f} {vol_ratio:>8}")
+            else:
+                print(f"{'':<12} {rank:>3} {time_str:<20} {bar['volume']:>16,.2f} "
+                      f"{bar['open']:>12,.2f} {bar['high']:>12,.2f} "
+                      f"{bar['low']:>12,.2f} {bar['close']:>12,.2f} {vol_ratio:>8}")
+        print("-" * 120)
+
+    store_4h.close()
+
+
+def top_n_volumes_4h(store_4h: KlineStore, signal_open_time_ms: int, top_n: int = 5) -> list[dict]:
+    """Get top-N 4h klines by volume in a 3-day window around a signal date."""
+    start_ms = signal_open_time_ms - ONE_DAY_MS
+    end_ms = signal_open_time_ms + ONE_DAY_MS
+    candles_4h = store_4h.query("BTCUSDT", start_ms, end_ms)
+    candles_4h.sort(key=lambda c: c["volume"], reverse=True)
+    return candles_4h[:top_n]
 
 
 if __name__ == "__main__":
