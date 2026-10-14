@@ -45,6 +45,33 @@ def calc_volume_percentiles(volumes: list[float], lookback: int = 730) -> list[f
     return result
 
 
+def calc_stoch_rsi(
+    closes: list[float],
+    rsi_period: int = 14,
+    stoch_period: int = 14,
+    smooth: int = 3,
+) -> list[float | None]:
+    """Stoch RSI %K line: Stochastic of RSI, SMA-smoothed (TradingView defaults).
+
+    K = SMA(100 * (RSI - min(RSI, stoch_period)) / (max - min), smooth).
+    """
+    rsi = calc_rsi(closes, rsi_period)
+    n = len(closes)
+
+    k_raw: list[float | None] = [None] * n
+    for i in range(rsi_period + stoch_period - 1, n):
+        window = rsi[i - stoch_period + 1:i + 1]
+        lo, hi = min(window), max(window)
+        k_raw[i] = (rsi[i] - lo) / (hi - lo) * 100 if hi > lo else 50.0
+
+    k: list[float | None] = [None] * n
+    for i in range(smooth - 1, n):
+        window = k_raw[i - smooth + 1:i + 1]
+        if all(v is not None for v in window):
+            k[i] = sum(window) / smooth
+    return k
+
+
 def calc_sma(values: list[float], period: int) -> list[float | None]:
     result: list[float | None] = [None] * (period - 1)
     for i in range(period - 1, len(values)):
